@@ -6,6 +6,7 @@ import './Pages.css';
 const Settings = () => {
   const { user } = useAuth();
   const [copied, setCopied] = useState(false);
+  const apiBaseUrl = import.meta.env.VITE_API_URL || '/api';
 
   const copyToClipboard = (text) => {
     navigator.clipboard.writeText(text);
@@ -61,12 +62,12 @@ const Settings = () => {
             <input
               type="text"
               className="form-control"
-              value="http://localhost:5000/api"
+              value={apiBaseUrl}
               readOnly
             />
             <button
               className="btn btn-secondary"
-              onClick={() => copyToClipboard('http://localhost:5000/api')}
+              onClick={() => copyToClipboard(apiBaseUrl)}
             >
               {copied ? '✓ Copied' : 'Copy'}
             </button>
