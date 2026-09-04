@@ -1,6 +1,8 @@
 # Prime Mart - Full-Stack Business Management System
 
-A comprehensive, production-quality small business management system built with React.js, Node.js/Express, and MongoDB. Designed for small shops and businesses to manage sales, expenses, inventory, staff, and financial reports from one unified dashboard.
+[![GitHub Repository](https://img.shields.io/badge/GitHub-Prime%20Mart-black?logo=github)](https://github.com/Harikrishnan200612/Prime-Mart-)
+
+Prime Mart is a full-stack business management system designed for small shops and businesses to manage sales, expenses, inventory, staff, and business analytics from one unified platform.
 
 ## 🎯 Features
 
