@@ -1,5 +1,7 @@
 # Prime Mart - Full-Stack Business Management System
 
+🌐 **[🚀 View Live Website](https://harikrishnan200612.github.io/Prime-Mart-/)**
+
 [![GitHub Repository](https://img.shields.io/badge/GitHub-Prime%20Mart-black?logo=github)](https://github.com/Harikrishnan200612/Prime-Mart-)
 
 Prime Mart is a full-stack business management system designed for small shops and businesses to manage sales, expenses, inventory, staff, and business analytics from one unified platform.
