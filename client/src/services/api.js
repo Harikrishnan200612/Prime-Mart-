@@ -1,7 +1,10 @@
 import axios from 'axios';
 
 // Use the Vite dev proxy locally and configure VITE_API_URL for a deployed API.
-const API_URL = import.meta.env.VITE_API_URL || '/api';
+const configuredApiUrl = import.meta.env.VITE_API_URL?.replace(/\/$/, '');
+const API_URL = configuredApiUrl
+  ? `${configuredApiUrl}${configuredApiUrl.endsWith('/api') ? '' : '/api'}`
+  : '/api';
 
 const api = axios.create({
   baseURL: API_URL,
