@@ -1,12 +1,6 @@
 # Prime Mart - Full-Stack Business Management System
 Prime Mart is a full-stack business management system designed for small shops and businesses to manage sales, expenses, inventory, staff, and business analytics from one unified platform.
 
-### GitHub Pages deployment
-
-The frontend is available at https://harikrishnan200612.github.io/Prime-Mart-/.
-GitHub Pages hosts the React frontend only; Express and MongoDB must be deployed separately for authenticated data and CRUD features.
-Set the repository variable `VITE_API_URL` to the public backend URL before deploying if a hosted API is available.
-
 ## 🎯 Features
 
 ### Dashboard & Analytics
