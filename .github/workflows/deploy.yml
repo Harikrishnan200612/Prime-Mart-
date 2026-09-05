@@ -30,13 +30,16 @@ jobs:
 
       - name: Install frontend dependencies
         working-directory: client
-        run: npm ci
+        run: npm install
 
       - name: Build frontend
         working-directory: client
         env:
           VITE_API_URL: ${{ vars.VITE_API_URL }}
         run: npm run build
+
+      - name: Verify frontend artifact
+        run: test -f client/dist/index.html && test -d client/dist/assets
 
       - name: Configure Pages
         uses: actions/configure-pages@v5
