@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { authService } from '../services/api';
 
 const AuthContext = createContext();
+const hasConfiguredApi = Boolean(import.meta.env.VITE_API_URL);
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
@@ -49,7 +50,11 @@ export const AuthProvider = ({ children }) => {
       setUser(response.data.user);
       return response.data;
     } catch (err) {
-      const message = err.response?.data?.message || 'Login failed';
+      const message = err.response?.data?.message || (
+        import.meta.env.PROD && !hasConfiguredApi
+          ? 'Login is unavailable because the backend API is not deployed.'
+          : 'Login failed'
+      );
       setError(message);
       throw err;
     }
