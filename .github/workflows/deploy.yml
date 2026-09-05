@@ -39,7 +39,14 @@ jobs:
         run: npm run build
 
       - name: Verify frontend artifact
-        run: test -f client/dist/index.html && test -d client/dist/assets
+        run: |
+          test -f client/dist/index.html
+          test -d client/dist/assets
+          test -f client/dist/.nojekyll
+          grep -q '<div id="root"></div>' client/dist/index.html
+          grep -q '/Prime-Mart-/assets/' client/dist/index.html
+          ! grep -q 'GitHub Pages deployment' client/dist/index.html
+          find client/dist -maxdepth 2 -type f -print
 
       - name: Configure Pages
         uses: actions/configure-pages@v5
