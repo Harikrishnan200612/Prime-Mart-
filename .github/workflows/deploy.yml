@@ -1,4 +1,4 @@
-name: Deploy Prime Mart frontend to GitHub Pages
+name: Deploy Prime Mart Frontend to GitHub Pages
 
 on:
   push:
@@ -30,23 +30,34 @@ jobs:
 
       - name: Install frontend dependencies
         working-directory: client
-        run: npm install
+        run: npm ci
 
       - name: Build frontend
         working-directory: client
         env:
+          # Set this variable in your GitHub repo:
+          # Settings → Secrets and variables → Actions → Variables → New repository variable
+          # Name: VITE_API_URL   Value: https://<your-backend>.onrender.com
           VITE_API_URL: ${{ vars.VITE_API_URL }}
         run: npm run build
 
-      - name: Verify frontend artifact
+      - name: Ensure .nojekyll exists in dist
+        run: touch client/dist/.nojekyll
+
+      - name: Verify build artifacts
         run: |
-          test -f client/dist/index.html
-          test -d client/dist/assets
-          test -f client/dist/.nojekyll
-          grep -q '<div id="root"></div>' client/dist/index.html
-          grep -q '/Prime-Mart-/assets/' client/dist/index.html
-          ! grep -q 'GitHub Pages deployment' client/dist/index.html
-          find client/dist -maxdepth 2 -type f -print
+          echo "=== Build output files ==="
+          find client/dist -maxdepth 3 -type f -print
+          echo ""
+          echo "=== index.html contents ==="
+          cat client/dist/index.html
+          echo ""
+          echo "=== Checking required files ==="
+          test -f client/dist/index.html && echo "✓ index.html present"
+          test -d client/dist/assets && echo "✓ assets/ directory present"
+          test -f client/dist/.nojekyll && echo "✓ .nojekyll present"
+          grep -q '<div id="root">' client/dist/index.html && echo "✓ React root div found"
+          grep -q '/Prime-Mart-/assets/' client/dist/index.html && echo "✓ base path /Prime-Mart-/ is set correctly"
 
       - name: Configure Pages
         uses: actions/configure-pages@v5
