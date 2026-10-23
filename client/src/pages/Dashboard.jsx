@@ -26,114 +26,243 @@ const Dashboard = () => {
   };
 
   if (loading) {
-    return <div className="loading"><div className="spinner"></div></div>;
+    return (
+      <div className="loading">
+        <div className="spinner"></div>
+      </div>
+    );
   }
 
   if (error) {
     return <div className="alert alert-danger">{error}</div>;
   }
 
-  const isProfitable = data.netProfit >= 0;
+  const isProfitable = (data.netProfit ?? 0) >= 0;
+  const isGrossProfitable = (data.grossProfit ?? 0) >= 0;
+  const isTodaysGrossProfitable = (data.todaysGrossProfit ?? 0) >= 0;
+  const isTodaysNetProfitable = (data.todaysProfit ?? 0) >= 0;
 
   return (
     <div className="page">
-      <PageHeader tone="blue" icon="▦" title="Dashboard" subtitle="Welcome back. Here's your business overview." />
+      <PageHeader
+        tone="blue"
+        icon="▦"
+        title="Dashboard"
+        subtitle="Welcome back. Here's your business overview."
+      />
 
+      {data.hasIncompleteCostData && (
+        <div className="alert alert-warning" style={{ marginBottom: '16px' }}>
+          ⚠️ Notice: Some historical sales records have incomplete inventory cost snapshots. COGS for those transactions may be estimated from current catalog records.
+        </div>
+      )}
+
+      {/* SECTION A: OVERALL BUSINESS SUMMARY (6 CARDS) */}
       <div className="dashboard-grid">
-        {/* Total Sales Card */}
+        {/* 1. Total Sales */}
         <div className="stat-card">
           <div className="stat-card-header">
             <div>
               <div className="stat-card-label">Total Sales</div>
-              <div className="stat-card-value">₹{data.totalSales.toLocaleString('en-IN')}</div>
+              <div className="stat-card-value">₹{(data.totalSales || 0).toLocaleString('en-IN')}</div>
             </div>
             <div className="stat-card-icon">💰</div>
           </div>
           <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
-            {data.transactionCount} transactions
+            {data.transactionCount ?? 0} transactions
           </div>
           <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '2px' }}>
             {data.salesCount ?? 0} sales · {data.unitsSold ?? 0} units sold
           </div>
         </div>
 
-        {/* Total Expenses Card */}
+        {/* 2. Inventory Purchase Expenses */}
         <div className="stat-card">
           <div className="stat-card-header">
             <div>
-              <div className="stat-card-label">Total Expenses</div>
-              <div className="stat-card-value">₹{data.totalExpenses.toLocaleString('en-IN')}</div>
+              <div className="stat-card-label">Inventory Purchase Expenses</div>
+              <div className="stat-card-value">₹{(data.inventoryExpenses || 0).toLocaleString('en-IN')}</div>
             </div>
-            <div className="stat-card-icon">💸</div>
+            <div className="stat-card-icon">📦</div>
           </div>
           <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
-            Operational & overhead
+            Cost of inventory acquired
+          </div>
+          <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '2px' }}>
+            Capitalized inventory stock
           </div>
         </div>
 
-        {/* Net Profit/Loss Card */}
+        {/* 3. Other Operating Expenses */}
+        <div className="stat-card">
+          <div className="stat-card-header">
+            <div>
+              <div className="stat-card-label">Other Operating Expenses</div>
+              <div className="stat-card-value">₹{(data.operatingExpenses || 0).toLocaleString('en-IN')}</div>
+            </div>
+            <div className="stat-card-icon">🏢</div>
+          </div>
+          <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
+            Rent, utilities, staff & overhead
+          </div>
+          <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '2px' }}>
+            Total expenses: ₹{(data.totalExpenses || 0).toLocaleString('en-IN')}
+          </div>
+        </div>
+
+        {/* 4. Cost of Goods Sold */}
+        <div className="stat-card">
+          <div className="stat-card-header">
+            <div>
+              <div className="stat-card-label">Cost of Goods Sold</div>
+              <div className="stat-card-value">₹{(data.cogs || 0).toLocaleString('en-IN')}</div>
+            </div>
+            <div className="stat-card-icon">🏷️</div>
+          </div>
+          <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
+            Actual inventory cost of sold goods
+          </div>
+          <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '2px' }}>
+            Based on unit purchase costs
+          </div>
+        </div>
+
+        {/* 5. Gross Profit */}
+        <div className="stat-card">
+          <div className="stat-card-header">
+            <div>
+              <div className="stat-card-label">Gross Profit</div>
+              <div className={`stat-card-value ${isGrossProfitable ? 'stat-profit' : 'stat-loss'}`}>
+                {isGrossProfitable ? '🟢' : '🔴'} ₹{Math.abs(data.grossProfit || 0).toLocaleString('en-IN')}
+              </div>
+            </div>
+            <div className="stat-card-icon">📊</div>
+          </div>
+          <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
+            Profit from goods sold (Revenue − COGS)
+          </div>
+          <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '2px' }}>
+            {data.grossMargin ?? 0}% gross margin
+          </div>
+        </div>
+
+        {/* 6. Net Profit/Loss */}
         <div className="stat-card">
           <div className="stat-card-header">
             <div>
               <div className="stat-card-label">Net Profit/Loss</div>
               <div className={`stat-card-value ${isProfitable ? 'stat-profit' : 'stat-loss'}`}>
-                {isProfitable ? '🟢' : '🔴'} ₹{Math.abs(data.netProfit).toLocaleString('en-IN')}
+                {isProfitable ? '🟢' : '🔴'} ₹{Math.abs(data.netProfit || 0).toLocaleString('en-IN')}
               </div>
             </div>
             <div className="stat-card-icon">{isProfitable ? '📈' : '📉'}</div>
           </div>
           <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
-            {isProfitable ? 'Profit' : 'Loss'}
+            Gross profit − Operating expenses
           </div>
-        </div>
-
-        {/* Profit Margin Card */}
-        <div className="stat-card">
-          <div className="stat-card-header">
-            <div>
-              <div className="stat-card-label">Profit Margin</div>
-              <div className="stat-card-value">{data.profitMargin}%</div>
-            </div>
-            <div className="stat-card-icon">📊</div>
-          </div>
-          <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
-            Margin on sales
+          <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '2px' }}>
+            {data.netProfitMargin ?? 0}% net margin
           </div>
         </div>
       </div>
 
-      {/* Today's Summary */}
+      {/* SECTION B: TODAY'S SUMMARY (6 CARDS) */}
       <div className="card" style={{ marginTop: '24px' }}>
         <div className="card-header">
           <h2>Today's Summary</h2>
         </div>
-        <div className="dashboard-grid">
+        <div className="dashboard-grid" style={{ marginBottom: 0 }}>
+          {/* 1. Today's Sales */}
           <div className="stat-card">
-            <div className="stat-card-label">Today's Sales</div>
-            <div className="stat-card-value">₹{data.todaysSales.toLocaleString('en-IN')}</div>
-          </div>
-
-          <div className="stat-card">
-            <div className="stat-card-label">Today's Expenses</div>
-            <div className="stat-card-value">₹{data.todaysExpenses.toLocaleString('en-IN')}</div>
-          </div>
-
-          <div className="stat-card">
-            <div className="stat-card-label">Today's Profit/Loss</div>
-            <div className={`stat-card-value ${data.todaysProfit >= 0 ? 'stat-profit' : 'stat-loss'}`}>
-              {data.todaysProfit >= 0 ? '🟢' : '🔴'} ₹{Math.abs(data.todaysProfit).toLocaleString('en-IN')}
+            <div className="stat-card-header">
+              <div>
+                <div className="stat-card-label">Today's Sales</div>
+                <div className="stat-card-value">₹{(data.todaysSales || 0).toLocaleString('en-IN')}</div>
+              </div>
+              <div className="stat-card-icon">💰</div>
+            </div>
+            <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
+              {data.todaysSalesCount ?? 0} sales recorded today
             </div>
           </div>
 
+          {/* 2. Today's Expenses */}
           <div className="stat-card">
-            <div className="stat-card-label">Low Stock Products</div>
-            <div className={`stat-card-value ${data.lowStockCount > 0 ? 'stat-warning' : 'text-success'}`}>
-              {data.lowStockCount}
+            <div className="stat-card-header">
+              <div>
+                <div className="stat-card-label">Today's Expenses</div>
+                <div className="stat-card-value">₹{(data.todaysExpenses || 0).toLocaleString('en-IN')}</div>
+              </div>
+              <div className="stat-card-icon">💸</div>
+            </div>
+            <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
+              Purchases: ₹{(data.todaysInventoryExpenses || 0).toLocaleString('en-IN')} · Operating: ₹{(data.todaysOperatingExpenses || 0).toLocaleString('en-IN')}
+            </div>
+          </div>
+
+          {/* 3. Today's Profit/Loss */}
+          <div className="stat-card">
+            <div className="stat-card-header">
+              <div>
+                <div className="stat-card-label">Today's Profit/Loss</div>
+                <div className={`stat-card-value ${isTodaysNetProfitable ? 'stat-profit' : 'stat-loss'}`}>
+                  {isTodaysNetProfitable ? '🟢' : '🔴'} ₹{Math.abs(data.todaysProfit || 0).toLocaleString('en-IN')}
+                </div>
+              </div>
+              <div className="stat-card-icon">{isTodaysNetProfitable ? '📈' : '📉'}</div>
+            </div>
+            <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
+              Today's Net: Gross profit − Operating
+            </div>
+          </div>
+
+          {/* 4. Low Stock Products */}
+          <div className="stat-card">
+            <div className="stat-card-header">
+              <div>
+                <div className="stat-card-label">Low Stock Products</div>
+                <div className={`stat-card-value ${data.lowStockCount > 0 ? 'stat-warning' : 'text-success'}`}>
+                  {data.lowStockCount}
+                </div>
+              </div>
+              <div className="stat-card-icon">⚠️</div>
+            </div>
+            <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
+              {data.lowStockCount > 0 ? 'Items at or below reorder level' : 'All items sufficiently stocked'}
+            </div>
+          </div>
+
+          {/* 5. Today's Cost of Goods Sold */}
+          <div className="stat-card">
+            <div className="stat-card-header">
+              <div>
+                <div className="stat-card-label">Today's Cost of Goods Sold</div>
+                <div className="stat-card-value">₹{(data.todaysCogs || 0).toLocaleString('en-IN')}</div>
+              </div>
+              <div className="stat-card-icon">🏷️</div>
+            </div>
+            <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
+              Cost of products sold today
+            </div>
+          </div>
+
+          {/* 6. Today's Profit from Goods Sold */}
+          <div className="stat-card">
+            <div className="stat-card-header">
+              <div>
+                <div className="stat-card-label">Today's Profit from Goods Sold</div>
+                <div className={`stat-card-value ${isTodaysGrossProfitable ? 'stat-profit' : 'stat-loss'}`}>
+                  {isTodaysGrossProfitable ? '🟢' : '🔴'} ₹{Math.abs(data.todaysGrossProfit || 0).toLocaleString('en-IN')}
+                </div>
+              </div>
+              <div className="stat-card-icon">📊</div>
+            </div>
+            <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
+              {data.todaysGrossMargin ?? 0}% gross margin today
             </div>
           </div>
         </div>
       </div>
-
     </div>
   );
 };

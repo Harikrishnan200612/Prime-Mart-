@@ -178,12 +178,15 @@ router.post('/', auth, async (req, res) => {
         const product = productMap.get(item.productId);
         if (!product) throw new HttpError(404, 'One of the selected products no longer exists.');
         const unitPrice = round2(product.sellingPrice);
+        const unitCost = round2(typeof product.purchasePrice === 'number' ? product.purchasePrice : 0);
         return {
           productId: product._id,
           productName: product.name,
           quantity: item.quantity,
           unitPrice,
+          unitCost,
           subtotal: round2(item.quantity * unitPrice),
+          totalCost: round2(item.quantity * unitCost),
           available: product.stock
         };
       });
@@ -201,6 +204,7 @@ router.post('/', auth, async (req, res) => {
 
       // 3. Totals are calculated here, never taken from the client
       const { subtotal, totalAmount } = computeTotals(lines, input.discount, input.tax);
+      const costOfGoodsSold = round2(lines.reduce((sum, line) => sum + (line.totalCost || 0), 0));
 
       // 4. Reduce inventory for every item (guarded against concurrent sales)
       for (const line of lines) {
@@ -231,6 +235,7 @@ router.post('/', auth, async (req, res) => {
         discount: input.discount,
         tax: input.tax,
         totalAmount,
+        costOfGoodsSold,
         paymentMethod: input.paymentMethod,
         notes: input.notes,
         ...(input.date ? { date: input.date } : {})
@@ -277,12 +282,17 @@ router.put('/:id', auth, async (req, res) => {
         }
 
         const unitPrice = old ? round2(old.unitPrice) : round2(product.sellingPrice);
+        const unitCost = (old && old.unitCost !== undefined)
+          ? round2(old.unitCost)
+          : round2(typeof product.purchasePrice === 'number' ? product.purchasePrice : 0);
         return {
           productId: product._id,
           productName: old ? old.productName : product.name,
           quantity: item.quantity,
           unitPrice,
-          subtotal: round2(item.quantity * unitPrice)
+          unitCost,
+          subtotal: round2(item.quantity * unitPrice),
+          totalCost: round2(item.quantity * unitCost)
         };
       });
 
@@ -314,6 +324,7 @@ router.put('/:id', auth, async (req, res) => {
       if (shortages.length) throw insufficientStockError(shortages);
 
       const { subtotal, totalAmount } = computeTotals(lines, input.discount, input.tax);
+      const costOfGoodsSold = round2(lines.reduce((sum, line) => sum + (line.totalCost || 0), 0));
 
       // Apply only the differences (decreases first, so failures happen before any restore)
       const ordered = [...deltas.entries()].sort((a, b) => a[1] - b[1]);
@@ -337,6 +348,7 @@ router.put('/:id', auth, async (req, res) => {
       existing.discount = input.discount;
       existing.tax = input.tax;
       existing.totalAmount = totalAmount;
+      existing.costOfGoodsSold = costOfGoodsSold;
       existing.customerName = input.customerName;
       existing.paymentMethod = input.paymentMethod;
       existing.notes = input.notes;

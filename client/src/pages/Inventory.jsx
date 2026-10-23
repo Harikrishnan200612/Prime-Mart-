@@ -43,6 +43,17 @@ const Inventory = () => {
     supplier: ''
   });
 
+  // State for Purchase Stock Modal
+  const [purchaseProduct, setPurchaseProduct] = useState(null);
+  const [purchaseData, setPurchaseData] = useState({
+    quantity: 1,
+    unitCost: '',
+    supplier: '',
+    paymentMethod: 'Cash',
+    notes: ''
+  });
+  const [purchasing, setPurchasing] = useState(false);
+
   useEffect(() => {
     fetchProducts();
   }, [search, filterCategory]);
@@ -115,17 +126,65 @@ const Inventory = () => {
     }
   };
 
-  const handleStockChange = async (productId, currentStock, action) => {
-    const quantity = prompt(`Enter quantity to ${action}:`, '1');
-    if (!quantity || isNaN(quantity) || quantity <= 0) return;
+  // Opens the dedicated Inventory Purchase modal
+  const openPurchaseModal = (product) => {
+    setPurchaseProduct(product);
+    setPurchaseData({
+      quantity: 1,
+      unitCost: product.purchasePrice !== undefined ? product.purchasePrice : '',
+      supplier: product.supplier || '',
+      paymentMethod: 'Cash',
+      notes: ''
+    });
+  };
 
+  // Submits the inventory purchase (creates purchase transaction & auto-expense)
+  const handlePurchaseSubmit = async (e) => {
+    e.preventDefault();
+    if (!purchaseProduct || purchasing) return;
+    const qty = parseInt(purchaseData.quantity, 10);
+    const unitCost = parseFloat(purchaseData.unitCost);
+
+    if (!qty || qty <= 0) {
+      setError('Quantity to purchase must be at least 1');
+      return;
+    }
+    if (isNaN(unitCost) || unitCost < 0) {
+      setError('Purchase price per unit must be 0 or more');
+      return;
+    }
+
+    setPurchasing(true);
+    setError('');
     try {
-      if (action === 'increase') {
-        await productService.increaseStock(productId, { quantity: parseInt(quantity) });
-      } else {
-        await productService.decreaseStock(productId, { quantity: parseInt(quantity) });
-      }
+      const ref = `PUR-${Date.now()}-${Math.random().toString(36).substr(2, 7).toUpperCase()}`;
+      await productService.increaseStock(purchaseProduct._id, {
+        quantity: qty,
+        unitCost,
+        supplier: purchaseData.supplier,
+        paymentMethod: purchaseData.paymentMethod,
+        notes: purchaseData.notes,
+        purchaseReference: ref
+      });
+      const totalAmount = qty * unitCost;
+      setNotice(`Recorded purchase: ${qty} units of ${purchaseProduct.name} (Total: ₹${totalAmount.toLocaleString('en-IN')}). Added automatically to Expenses.`);
+      setPurchaseProduct(null);
       fetchProducts();
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to record inventory purchase');
+    } finally {
+      setPurchasing(false);
+    }
+  };
+
+  // Decreases stock (manual adjustment / wastage / damage - does not record an expense)
+  const handleDecreaseStock = async (productId) => {
+    const quantity = prompt('Enter quantity to decrease (wastage/adjustment):', '1');
+    if (!quantity || isNaN(quantity) || quantity <= 0) return;
+    try {
+      await productService.decreaseStock(productId, { quantity: parseInt(quantity, 10) });
+      fetchProducts();
+      setNotice('Stock adjusted successfully.');
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to update stock');
     }
@@ -237,24 +296,30 @@ const Inventory = () => {
 
   return (
     <div className="page">
-      <PageHeader tone="inventory" icon="□" title="Inventory Management" subtitle="Track products and stock levels" action={
-        <div className="page-actions data-io-actions">
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".xlsx,.xls,.csv"
-            style={{ display: 'none' }}
-            onChange={handleImportFile}
-          />
-          <button className="btn btn-io" onClick={() => fileInputRef.current?.click()} disabled={importing}>
-            {importing ? 'Importing…' : '⇪ Import Excel'}
-          </button>
-          <button className="btn btn-io" onClick={handleExport} disabled={!products.length}>⇩ Export Excel</button>
-          <button className="btn btn-primary" onClick={() => setShowModal(true)}>
-            + Add Product
-          </button>
-        </div>
-      } />
+      <PageHeader
+        tone="inventory"
+        icon="□"
+        title="Inventory Management"
+        subtitle="Track products and stock levels"
+        action={
+          <div className="page-actions data-io-actions">
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".xlsx,.xls,.csv"
+              style={{ display: 'none' }}
+              onChange={handleImportFile}
+            />
+            <button className="btn btn-io" onClick={() => fileInputRef.current?.click()} disabled={importing}>
+              {importing ? 'Importing…' : '⇪ Import Excel'}
+            </button>
+            <button className="btn btn-io" onClick={handleExport} disabled={!products.length}>⇩ Export Excel</button>
+            <button className="btn btn-primary" onClick={() => setShowModal(true)}>
+              + Add Product
+            </button>
+          </div>
+        }
+      />
 
       {error && <div className="alert alert-danger">{error}</div>}
       {notice && <div className="alert alert-success">{notice}<button className="alert-close" onClick={() => setNotice('')}>×</button></div>}
@@ -353,23 +418,23 @@ const Inventory = () => {
                         <div className="action-buttons">
                           <button 
                             className="action-btn" 
-                            onClick={() => handleStockChange(product._id, product.stock, 'increase')}
-                            title="Increase Stock"
+                            onClick={() => openPurchaseModal(product)}
+                            title="Purchase Stock (Records Expense)"
                           >
                             ➕
                           </button>
                           <button 
                             className="action-btn" 
-                            onClick={() => handleStockChange(product._id, product.stock, 'decrease')}
+                            onClick={() => handleDecreaseStock(product._id)}
                             title="Decrease Stock"
                             disabled={product.stock === 0}
                           >
                             ➖
                           </button>
-                          <button className="action-btn" onClick={() => handleEdit(product)}>
+                          <button className="action-btn" onClick={() => handleEdit(product)} title="Edit Product">
                             ✏️
                           </button>
-                          <button className="action-btn delete" onClick={() => handleDelete(product._id)}>
+                          <button className="action-btn delete" onClick={() => handleDelete(product._id)} title="Delete Product">
                             🗑️
                           </button>
                         </div>
@@ -383,14 +448,16 @@ const Inventory = () => {
         </div>
       )}
 
-      {/* Modal */}
+      {/* Add / Edit Product Modal */}
       {showModal && (
         <div className="modal-overlay">
           <div className="modal">
             <div className="modal-header">
               <h2>{editingId ? 'Edit Product' : 'Add New Product'}</h2>
-              <button style={{ background: 'none', border: 'none', fontSize: '24px', cursor: 'pointer' }}
-                onClick={handleCloseModal}>
+              <button
+                style={{ background: 'none', border: 'none', fontSize: '24px', cursor: 'pointer' }}
+                onClick={handleCloseModal}
+              >
                 ✕
               </button>
             </div>
@@ -512,6 +579,114 @@ const Inventory = () => {
                   </button>
                   <button type="submit" className="btn btn-primary">
                     {editingId ? 'Update Product' : 'Add Product'}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Record Stock Purchase Modal */}
+      {purchaseProduct && (
+        <div className="modal-overlay">
+          <div className="modal">
+            <div className="modal-header">
+              <h2>Purchase Stock — {purchaseProduct.name}</h2>
+              <button
+                style={{ background: 'none', border: 'none', fontSize: '24px', cursor: 'pointer' }}
+                onClick={() => setPurchaseProduct(null)}
+              >
+                ✕
+              </button>
+            </div>
+            <div className="modal-body">
+              <p style={{ color: 'var(--text-secondary)', marginBottom: '16px', fontSize: '13px' }}>
+                Purchasing stock increases inventory and automatically records a corresponding business expense.
+              </p>
+              <form onSubmit={handlePurchaseSubmit}>
+                <div className="form-grid">
+                  <div className="form-group">
+                    <label className="form-label">Quantity to Purchase *</label>
+                    <input
+                      type="number"
+                      className="form-control"
+                      value={purchaseData.quantity}
+                      onChange={(e) => setPurchaseData(prev => ({ ...prev, quantity: e.target.value }))}
+                      min="1"
+                      required
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label className="form-label">Purchase Price Per Unit (₹) *</label>
+                    <input
+                      type="number"
+                      className="form-control"
+                      value={purchaseData.unitCost}
+                      onChange={(e) => setPurchaseData(prev => ({ ...prev, unitCost: e.target.value }))}
+                      min="0"
+                      step="0.01"
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div className="form-grid">
+                  <div className="form-group">
+                    <label className="form-label">Supplier / Vendor</label>
+                    <input
+                      type="text"
+                      className="form-control"
+                      value={purchaseData.supplier}
+                      onChange={(e) => setPurchaseData(prev => ({ ...prev, supplier: e.target.value }))}
+                      placeholder="e.g., Wholesale Distributor"
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label className="form-label">Payment Method</label>
+                    <select
+                      className="form-control"
+                      value={purchaseData.paymentMethod}
+                      onChange={(e) => setPurchaseData(prev => ({ ...prev, paymentMethod: e.target.value }))}
+                    >
+                      <option>Cash</option>
+                      <option>UPI</option>
+                      <option>Card</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* Total Cost Preview */}
+                <div style={{
+                  background: 'var(--bg-secondary, #f8fafc)',
+                  padding: '14px 16px',
+                  borderRadius: '8px',
+                  marginBottom: '16px',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  border: '1px solid var(--border-color, #e2e8f0)'
+                }}>
+                  <div>
+                    <span style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>Total Purchase Expense:</span>
+                    <div style={{ fontSize: '20px', fontWeight: 'bold', color: 'var(--danger, #ef4444)' }}>
+                      ₹{((parseInt(purchaseData.quantity, 10) || 0) * (parseFloat(purchaseData.unitCost) || 0)).toLocaleString('en-IN')}
+                    </div>
+                  </div>
+                  <div style={{ fontSize: '12px', color: 'var(--text-secondary)', textAlign: 'right' }}>
+                    <div>Current Stock: <strong>{purchaseProduct.stock}</strong></div>
+                    <div>After Purchase: <strong>{Number(purchaseProduct.stock) + (parseInt(purchaseData.quantity, 10) || 0)}</strong></div>
+                  </div>
+                </div>
+
+                <div className="modal-footer">
+                  <button type="button" className="btn btn-secondary" onClick={() => setPurchaseProduct(null)}>
+                    Cancel
+                  </button>
+                  <button type="submit" className="btn btn-primary" disabled={purchasing}>
+                    {purchasing ? 'Recording Purchase…' : 'Confirm Purchase & Add Expense'}
                   </button>
                 </div>
               </form>

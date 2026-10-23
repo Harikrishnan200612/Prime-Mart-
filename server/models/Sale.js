@@ -21,10 +21,20 @@ const saleItemSchema = new mongoose.Schema({
     required: true,
     min: 0
   },
+  unitCost: {
+    type: Number,
+    min: 0,
+    default: 0
+  },
   subtotal: {
     type: Number,
     required: true,
     min: 0
+  },
+  totalCost: {
+    type: Number,
+    min: 0,
+    default: 0
   }
 }, { _id: false });
 
@@ -64,6 +74,17 @@ const saleSchema = new mongoose.Schema({
     type: Number,
     required: true,
     min: 0
+  },
+
+  // Cost of Goods Sold snapshot
+  costOfGoodsSold: {
+    type: Number,
+    min: 0,
+    default: 0
+  },
+  hasIncompleteCost: {
+    type: Boolean,
+    default: false
   },
 
   paymentMethod: {

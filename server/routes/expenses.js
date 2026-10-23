@@ -118,10 +118,27 @@ router.put('/:id', auth, async (req, res) => {
 // Delete expense
 router.delete('/:id', auth, async (req, res) => {
   try {
-    const expense = await Expense.findOneAndDelete({ _id: req.params.id, userId: req.userId });
+    const expense = await Expense.findOne({ _id: req.params.id, userId: req.userId });
     if (!expense) {
       return res.status(404).json({ message: 'Expense not found' });
     }
+
+    // If this expense is linked to an inventory purchase, adjust stock and mark purchase as cancelled
+    if (expense.purchaseId && expense.productId && expense.quantity) {
+      const Product = require('../models/Product');
+      const Purchase = require('../models/Purchase');
+
+      await Product.updateOne(
+        { _id: expense.productId, userId: req.userId },
+        { $inc: { stock: -expense.quantity }, $set: { updatedAt: new Date() } }
+      );
+      await Purchase.updateOne(
+        { _id: expense.purchaseId, userId: req.userId },
+        { $set: { status: 'Cancelled' } }
+      );
+    }
+
+    await Expense.deleteOne({ _id: expense._id, userId: req.userId });
     res.json({ message: 'Expense deleted successfully' });
   } catch (err) {
     res.status(500).json({ message: 'Failed to delete expense' });

@@ -10,6 +10,7 @@ const expenseSchema = new mongoose.Schema({
     type: String,
     enum: [
       'Stock Purchase',
+      'Inventory Purchase',
       'Shop Rent',
       'Electricity',
       'Water',
@@ -41,6 +42,23 @@ const expenseSchema = new mongoose.Schema({
     default: 'Cash'
   },
   notes: String,
+  // Linked inventory purchase metadata
+  purchaseId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Purchase'
+  },
+  productId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Product'
+  },
+  productName: String,
+  sku: String,
+  quantity: Number,
+  unitCost: Number,
+  supplier: String,
+  purchaseReference: {
+    type: String
+  },
   createdAt: {
     type: Date,
     default: Date.now
@@ -54,5 +72,9 @@ const expenseSchema = new mongoose.Schema({
 // Index for faster queries
 expenseSchema.index({ userId: 1, date: -1 });
 expenseSchema.index({ category: 1 });
+expenseSchema.index(
+  { userId: 1, purchaseReference: 1 },
+  { unique: true, partialFilterExpression: { purchaseReference: { $type: 'string' } } }
+);
 
 module.exports = mongoose.model('Expense', expenseSchema);

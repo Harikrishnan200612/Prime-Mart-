@@ -4,140 +4,215 @@ const mongoose = require('mongoose');
 
 const auth = require('../middleware/auth');
 const Sale = require('../models/Sale');
-const { normalizeItemsStage } = require('../utils/saleUtils');
+const { normalizeItemsStage, round2 } = require('../utils/saleUtils');
 const Expense = require('../models/Expense');
 const Product = require('../models/Product');
+
+const INVENTORY_CATEGORIES = ['Stock Purchase', 'Inventory Purchase'];
 
 router.get('/', auth, async (req, res) => {
   try {
     const userId = req.userId;
-
-    // Convert userId to MongoDB ObjectId
     const userObjectId = new mongoose.Types.ObjectId(userId);
 
-    // Get today's date
-    const today = new Date();
+    // Date boundaries for today (supports optional query date or defaults to local server today)
+    let today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    // Get tomorrow's date
+    if (req.query.date) {
+      const parsed = new Date(req.query.date);
+      if (!isNaN(parsed.getTime())) {
+        today = new Date(parsed);
+        today.setHours(0, 0, 0, 0);
+      }
+    }
+
     const tomorrow = new Date(today);
     tomorrow.setDate(tomorrow.getDate() + 1);
 
     // ==========================================
-    // TOTAL SALES
+    // 1. OVERALL SALES & COGS
     // ==========================================
-    const salesData = await Sale.aggregate([
+    const salesAgg = await Sale.aggregate([
+      { $match: { userId: userObjectId } },
+      normalizeItemsStage,
       {
-        $match: {
-          userId: userObjectId
+        $project: {
+          totalAmount: 1,
+          cogs: {
+            $cond: [
+              { $gt: [{ $ifNull: ['$costOfGoodsSold', 0] }, 0] },
+              '$costOfGoodsSold',
+              {
+                $reduce: {
+                  input: '$items',
+                  initialValue: 0,
+                  in: {
+                    $add: [
+                      '$$value',
+                      {
+                        $multiply: [
+                          { $ifNull: ['$$this.quantity', 0] },
+                          { $ifNull: ['$$this.unitCost', 0] }
+                        ]
+                      }
+                    ]
+                  }
+                }
+              }
+            ]
+          }
         }
       },
       {
         $group: {
           _id: null,
-          total: {
-            $sum: '$totalAmount'
-          }
+          totalSales: { $sum: '$totalAmount' },
+          totalCogs: { $sum: '$cogs' }
         }
       }
     ]);
 
-    const totalSales = salesData[0]?.total || 0;
+    const totalSales = round2(salesAgg[0]?.totalSales || 0);
+    const cogs = round2(salesAgg[0]?.totalCogs || 0);
 
     // ==========================================
-    // TODAY'S SALES
+    // 2. TODAY'S SALES & COGS
     // ==========================================
-    const todaysSalesData = await Sale.aggregate([
-      {
-        $match: {
-          userId: userObjectId,
-          date: {
-            $gte: today,
-            $lt: tomorrow
-          }
-        }
-      },
-      {
-        $group: {
-          _id: null,
-          total: {
-            $sum: '$totalAmount'
-          }
-        }
-      }
-    ]);
-
-    const todaysSales = todaysSalesData[0]?.total || 0;
-
-    // ==========================================
-    // TOTAL EXPENSES
-    // ==========================================
-    const expensesData = await Expense.aggregate([
-      {
-        $match: {
-          userId: userObjectId
-        }
-      },
-      {
-        $group: {
-          _id: null,
-          total: {
-            $sum: '$amount'
-          }
-        }
-      }
-    ]);
-
-    const totalExpenses = expensesData[0]?.total || 0;
-
-    // ==========================================
-    // TODAY'S EXPENSES
-    // ==========================================
-    const todaysExpensesData = await Expense.aggregate([
+    const todaysSalesAgg = await Sale.aggregate([
       {
         $match: {
           userId: userObjectId,
-          date: {
-            $gte: today,
-            $lt: tomorrow
+          date: { $gte: today, $lt: tomorrow }
+        }
+      },
+      normalizeItemsStage,
+      {
+        $project: {
+          totalAmount: 1,
+          cogs: {
+            $cond: [
+              { $gt: [{ $ifNull: ['$costOfGoodsSold', 0] }, 0] },
+              '$costOfGoodsSold',
+              {
+                $reduce: {
+                  input: '$items',
+                  initialValue: 0,
+                  in: {
+                    $add: [
+                      '$$value',
+                      {
+                        $multiply: [
+                          { $ifNull: ['$$this.quantity', 0] },
+                          { $ifNull: ['$$this.unitCost', 0] }
+                        ]
+                      }
+                    ]
+                  }
+                }
+              }
+            ]
           }
         }
       },
       {
         $group: {
           _id: null,
-          total: {
-            $sum: '$amount'
+          totalSales: { $sum: '$totalAmount' },
+          totalCogs: { $sum: '$cogs' },
+          count: { $sum: 1 }
+        }
+      }
+    ]);
+
+    const todaysSales = round2(todaysSalesAgg[0]?.totalSales || 0);
+    const todaysCogs = round2(todaysSalesAgg[0]?.totalCogs || 0);
+    const todaysSalesCount = todaysSalesAgg[0]?.count || 0;
+
+    // ==========================================
+    // 3. OVERALL EXPENSES (Inventory vs Operating)
+    // ==========================================
+    const expensesAgg = await Expense.aggregate([
+      { $match: { userId: userObjectId } },
+      {
+        $group: {
+          _id: null,
+          totalExpenses: { $sum: '$amount' },
+          inventoryExpenses: {
+            $sum: {
+              $cond: [{ $in: ['$category', INVENTORY_CATEGORIES] }, '$amount', 0]
+            }
+          },
+          operatingExpenses: {
+            $sum: {
+              $cond: [{ $not: [{ $in: ['$category', INVENTORY_CATEGORIES] }] }, '$amount', 0]
+            }
           }
         }
       }
     ]);
 
-    const todaysExpenses = todaysExpensesData[0]?.total || 0;
+    const totalExpenses = round2(expensesAgg[0]?.totalExpenses || 0);
+    const inventoryExpenses = round2(expensesAgg[0]?.inventoryExpenses || 0);
+    const operatingExpenses = round2(expensesAgg[0]?.operatingExpenses || 0);
 
     // ==========================================
-    // NET PROFIT / LOSS
+    // 4. TODAY'S EXPENSES (Inventory vs Operating)
     // ==========================================
-    const netProfit = totalSales - totalExpenses;
-    const todaysProfit = todaysSales - todaysExpenses;
+    const todaysExpensesAgg = await Expense.aggregate([
+      {
+        $match: {
+          userId: userObjectId,
+          date: { $gte: today, $lt: tomorrow }
+        }
+      },
+      {
+        $group: {
+          _id: null,
+          totalExpenses: { $sum: '$amount' },
+          inventoryExpenses: {
+            $sum: {
+              $cond: [{ $in: ['$category', INVENTORY_CATEGORIES] }, '$amount', 0]
+            }
+          },
+          operatingExpenses: {
+            $sum: {
+              $cond: [{ $not: [{ $in: ['$category', INVENTORY_CATEGORIES] }] }, '$amount', 0]
+            }
+          }
+        }
+      }
+    ]);
+
+    const todaysExpenses = round2(todaysExpensesAgg[0]?.totalExpenses || 0);
+    const todaysInventoryExpenses = round2(todaysExpensesAgg[0]?.inventoryExpenses || 0);
+    const todaysOperatingExpenses = round2(todaysExpensesAgg[0]?.operatingExpenses || 0);
 
     // ==========================================
-    // PROFIT MARGIN
+    // 5. PROFIT CALCULATIONS (Gross & Net)
     // ==========================================
-    const profitMargin =
-      totalSales > 0
-        ? Number(((netProfit / totalSales) * 100).toFixed(2))
-        : 0;
+    // Gross Profit = Net Sales Revenue - COGS
+    const grossProfit = round2(totalSales - cogs);
+    const grossMargin = totalSales > 0 ? Number(((grossProfit / totalSales) * 100).toFixed(2)) : 0;
+
+    // Net Profit = Gross Profit - Operating Expenses
+    // (Prevents double counting: unsold inventory remains an asset, cost of sold inventory is COGS)
+    const netProfit = round2(grossProfit - operatingExpenses);
+    const netProfitMargin = totalSales > 0 ? Number(((netProfit / totalSales) * 100).toFixed(2)) : 0;
+
+    // Today's Gross Profit = Today's Sales - Today's COGS
+    const todaysGrossProfit = round2(todaysSales - todaysCogs);
+    const todaysGrossMargin = todaysSales > 0 ? Number(((todaysGrossProfit / todaysSales) * 100).toFixed(2)) : 0;
+
+    // Today's Net Profit = Today's Gross Profit - Today's Operating Expenses
+    const todaysProfit = round2(todaysGrossProfit - todaysOperatingExpenses);
 
     // ==========================================
-    // TRANSACTION COUNT
+    // 6. TRANSACTION STATS
     // ==========================================
-    const salesCount = await Sale.countDocuments({
-      userId: userObjectId
-    });
+    const salesCount = await Sale.countDocuments({ userId: userObjectId });
+    const expenseCount = await Expense.countDocuments({ userId: userObjectId });
 
-    // One sale = one transaction, no matter how many products it contains.
-    // Units / product lines are counted separately from the items inside each sale.
     const itemStats = await Sale.aggregate([
       { $match: { userId: userObjectId } },
       normalizeItemsStage,
@@ -154,41 +229,55 @@ router.get('/', auth, async (req, res) => {
     const unitsSold = itemStats[0]?.unitsSold || 0;
     const productLinesSold = itemStats[0]?.productLinesSold || 0;
 
-    const expenseCount = await Expense.countDocuments({
-      userId: userObjectId
-    });
-
     // ==========================================
-    // LOW STOCK PRODUCTS
+    // 7. LOW STOCK & INCOMPLETE COST CHECKS
     // ==========================================
     const lowStockProducts = await Product.countDocuments({
       userId: userObjectId,
-      $expr: {
-        $lte: ['$stock', '$minimumStock']
-      }
+      $expr: { $lte: ['$stock', '$minimumStock'] }
     });
 
+    const hasIncompleteCostData = Boolean(
+      await Sale.exists({ userId: userObjectId, hasIncompleteCost: true })
+    );
+
     // ==========================================
-    // RESPONSE
+    // 8. FINAL DASHBOARD RESPONSE
     // ==========================================
     res.json({
+      // Overall Business Summary (Section A: 6 Cards)
       totalSales,
-      totalExpenses,
+      inventoryExpenses,
+      operatingExpenses,
+      cogs,
+      grossProfit,
+      grossMargin,
       netProfit,
-      profitMargin,
+      netProfitMargin,
+      totalExpenses,
+
+      // Today's Summary (Section B: 6 Cards)
       todaysSales,
       todaysExpenses,
       todaysProfit,
+      lowStockCount: lowStockProducts,
+      todaysCogs,
+      todaysGrossProfit,
+      todaysGrossMargin,
+      todaysSalesCount,
+      todaysInventoryExpenses,
+      todaysOperatingExpenses,
+
+      // Meta / Activity
       transactionCount: salesCount + expenseCount,
       salesCount,
       unitsSold,
       productLinesSold,
-      lowStockCount: lowStockProducts
+      hasIncompleteCostData
     });
 
   } catch (err) {
     console.error('Dashboard Error:', err);
-
     res.status(500).json({
       message: 'Failed to fetch dashboard data',
       error: err.message

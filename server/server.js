@@ -29,6 +29,8 @@ mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/smartbiz'
     console.log('✓ MongoDB connected');
     const converted = await require('./utils/migrateLegacySales')();
     if (converted) console.log(`✓ Converted ${converted} older sale(s) to the multi-product format`);
+    const costMigration = await require('./utils/migrateHistoricalSalesCost')();
+    if (costMigration && costMigration.updated) console.log(`✓ Reconstructed cost snapshots for ${costMigration.updated} sale(s)`);
   })
   .catch(err => console.error('✗ MongoDB connection error:', err));
 

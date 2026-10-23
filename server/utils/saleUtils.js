@@ -22,21 +22,31 @@ const escapeRegex = (text) => String(text).replace(/[.*+?^${}()|[\]\\]/g, '\\$&'
 
 const getSaleItems = (sale) => {
   if (Array.isArray(sale.items) && sale.items.length > 0) {
-    return sale.items.map((item) => ({
-      productId: item.productId,
-      productName: item.productName,
-      quantity: item.quantity,
-      unitPrice: item.unitPrice,
-      subtotal: item.subtotal
-    }));
+    return sale.items.map((item) => {
+      const unitCost = Number(item.unitCost ?? 0);
+      const totalCost = Number(item.totalCost ?? round2((item.quantity || 0) * unitCost));
+      return {
+        productId: item.productId,
+        productName: item.productName,
+        quantity: item.quantity,
+        unitPrice: item.unitPrice,
+        unitCost,
+        subtotal: item.subtotal,
+        totalCost
+      };
+    });
   }
   if (sale.productId || sale.productName) {
+    const unitCost = Number(sale.unitCost ?? 0);
+    const totalCost = Number(sale.totalCost ?? round2((sale.quantity || 0) * unitCost));
     return [{
       productId: sale.productId,
       productName: sale.productName,
       quantity: sale.quantity || 0,
       unitPrice: sale.sellingPrice || 0,
-      subtotal: sale.totalAmount || 0
+      unitCost,
+      subtotal: sale.totalAmount || 0,
+      totalCost
     }];
   }
   return [];
@@ -47,6 +57,7 @@ const serializeSale = (sale) => {
   const obj = typeof sale.toObject === 'function' ? sale.toObject() : { ...sale };
   const items = getSaleItems(obj);
   const itemsTotal = round2(items.reduce((sum, item) => sum + Number(item.subtotal || 0), 0));
+  const cogsTotal = round2(items.reduce((sum, item) => sum + Number(item.totalCost || 0), 0));
 
   const out = {
     ...obj,
@@ -54,6 +65,8 @@ const serializeSale = (sale) => {
     subtotal: obj.subtotal ?? (itemsTotal || obj.totalAmount || 0),
     discount: obj.discount || 0,
     tax: obj.tax || 0,
+    costOfGoodsSold: obj.costOfGoodsSold ?? cogsTotal,
+    hasIncompleteCost: Boolean(obj.hasIncompleteCost),
     invoiceNumber: obj.invoiceNumber || `SALE-${String(obj._id).slice(-6).toUpperCase()}`,
     itemCount: items.length,
     totalUnits: items.reduce((sum, item) => sum + Number(item.quantity || 0), 0)
@@ -83,7 +96,9 @@ const normalizeItemsStage = {
               productName: '$productName',
               quantity: { $ifNull: ['$quantity', 0] },
               unitPrice: { $ifNull: ['$sellingPrice', 0] },
-              subtotal: { $ifNull: ['$totalAmount', 0] }
+              unitCost: { $ifNull: ['$unitCost', 0] },
+              subtotal: { $ifNull: ['$totalAmount', 0] },
+              totalCost: { $ifNull: ['$totalCost', 0] }
             }],
             []
           ]
