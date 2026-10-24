@@ -53,7 +53,26 @@ const seedData = async () => {
       ['Biscuits 200g', 'BISCUIT-200G-001', 'Snacks', 22, 35, 55, 12, 'Fresh Bakes'],
       ['Milk 1L', 'MILK-1L-001', 'Dairy', 48, 62, 0, 10, 'Local Dairy'],
       ['Detergent 1kg', 'DETERGENT-1KG-001', 'Household', 105, 145, 14, 5, 'CleanHome Distributors'],
-      ['Soap 100g', 'SOAP-100G-001', 'Personal Care', 28, 42, 32, 8, 'Personal Care Wholesale']
+      ['Soap 100g', 'SOAP-100G-001', 'Personal Care', 28, 42, 32, 8, 'Personal Care Wholesale'],
+      ['Basmati Rice 1kg', 'BASMATI-1KG-001', 'Groceries', 95, 135, 35, 8, 'Himalayan Grains Co.'],
+      ['Atta (Whole Wheat) 5kg', 'ATTA-5KG-001', 'Groceries', 210, 260, 28, 6, 'Aashirvaad Distributors'],
+      ['Refined Sunflower Oil 1L', 'SUN-OIL-1L-001', 'Cooking Items', 115, 145, 40, 10, 'Fortune Foods'],
+      ['Mustard Oil 1L', 'MUSTARD-OIL-1L-001', 'Cooking Items', 130, 165, 25, 5, 'Kachi Ghani Mills'],
+      ['Chana Dal 1kg', 'CHANA-DAL-1KG-001', 'Pulses', 78, 98, 30, 8, 'Pulse Traders'],
+      ['Urad Dal (Split) 1kg', 'URAD-DAL-1KG-001', 'Pulses', 115, 140, 22, 5, 'Pulse Traders'],
+      ['Green Tea 25 Bags', 'GREEN-TEA-25B-001', 'Beverages', 140, 190, 24, 5, 'Organic India Traders'],
+      ['Fruit Juice 1L', 'JUICE-1L-001', 'Beverages', 85, 120, 32, 8, 'Real Beverages Ltd'],
+      ['Mineral Water 1L', 'WATER-1L-001', 'Beverages', 12, 20, 60, 15, 'Bisleri Aqua Supply'],
+      ['Instant Noodles 4-Pack', 'NOODLES-4PK-001', 'Snacks', 48, 60, 45, 10, 'Nestle Distribution'],
+      ['Potato Chips 50g', 'CHIPS-50G-001', 'Snacks', 15, 20, 50, 12, 'Frito-Lay India'],
+      ['Roasted Peanuts 200g', 'PEANUTS-200G-001', 'Snacks', 45, 65, 30, 8, 'Haldiram Snacks'],
+      ['Tomato Ketchup 500g', 'KETCHUP-500G-001', 'Groceries', 85, 115, 25, 5, 'Kissan Foods'],
+      ['Butter 100g', 'BUTTER-100G-001', 'Dairy', 46, 58, 26, 6, 'Amul Dairy Depot'],
+      ['Paneer 200g', 'PANEER-200G-001', 'Dairy', 72, 90, 18, 5, 'Amul Dairy Depot'],
+      ['Toothpaste 150g', 'TOOTHPASTE-150G-001', 'Personal Care', 75, 105, 35, 8, 'Colgate Consumer Care'],
+      ['Hair Shampoo 180ml', 'SHAMPOO-180ML-001', 'Personal Care', 110, 150, 20, 5, 'Personal Care Wholesale'],
+      ['Dishwash Liquid 500ml', 'DISHWASH-500ML-001', 'Household', 82, 110, 30, 8, 'CleanHome Distributors'],
+      ['Floor Cleaner 1L', 'FLOOR-CLEANER-1L-001', 'Household', 95, 135, 22, 5, 'CleanHome Distributors']
     ];
     const products = productCatalog.map(([name, sku, category, purchasePrice, sellingPrice, stock, minimumStock, supplier]) => ({
       userId, name, sku, category, purchasePrice, sellingPrice, stock, minimumStock, supplier

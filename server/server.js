@@ -31,6 +31,8 @@ mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/smartbiz'
     if (converted) console.log(`✓ Converted ${converted} older sale(s) to the multi-product format`);
     const costMigration = await require('./utils/migrateHistoricalSalesCost')();
     if (costMigration && costMigration.updated) console.log(`✓ Reconstructed cost snapshots for ${costMigration.updated} sale(s)`);
+    const productSeed = await require('./utils/seedAdditionalProducts')();
+    if (productSeed && productSeed.inserted) console.log(`✓ Seeded ${productSeed.inserted} additional product(s) into inventory`);
   })
   .catch(err => console.error('✗ MongoDB connection error:', err));
 
