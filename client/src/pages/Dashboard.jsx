@@ -76,20 +76,20 @@ const Dashboard = () => {
           </div>
         </div>
 
-        {/* 2. Inventory Purchase Expenses */}
+        {/* 2. Total Inventory Value */}
         <div className="stat-card">
           <div className="stat-card-header">
             <div>
-              <div className="stat-card-label">Inventory Purchase Expenses</div>
-              <div className="stat-card-value">₹{(data.inventoryExpenses || 0).toLocaleString('en-IN')}</div>
+              <div className="stat-card-label">Total Inventory Value</div>
+              <div className="stat-card-value">₹{(data.totalInventoryValue || 0).toLocaleString('en-IN')}</div>
             </div>
             <div className="stat-card-icon">📦</div>
           </div>
           <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
-            Cost of inventory acquired
+            Available stock × unit purchase cost
           </div>
           <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '2px' }}>
-            Capitalized inventory stock
+            {data.totalStockUnits ?? 0} units in stock · {data.productCount ?? 0} products
           </div>
         </div>
 

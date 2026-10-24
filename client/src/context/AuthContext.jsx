@@ -60,6 +60,24 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  const updateProfile = async (data) => {
+    try {
+      setError(null);
+      const response = await authService.updateProfile(data);
+      if (response.data.token) {
+        localStorage.setItem('token', response.data.token);
+      }
+      if (response.data.user) {
+        setUser(response.data.user);
+      }
+      return response.data;
+    } catch (err) {
+      const message = err.response?.data?.message || 'Failed to update credentials';
+      setError(message);
+      throw err;
+    }
+  };
+
   const logout = () => {
     localStorage.removeItem('token');
     setUser(null);
@@ -67,7 +85,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, error, register, login, logout }}>
+    <AuthContext.Provider value={{ user, loading, error, register, login, logout, updateProfile }}>
       {children}
     </AuthContext.Provider>
   );

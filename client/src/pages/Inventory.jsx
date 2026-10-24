@@ -288,8 +288,12 @@ const Inventory = () => {
     resetForm();
   };
 
-  // Calculate inventory value
-  const totalInventoryValue = products.reduce((sum, p) => sum + (p.stock * p.purchasePrice), 0);
+  // Calculate inventory value: Sum of (Available Stock Quantity × Unit Purchase Cost)
+  const totalInventoryValue = products.reduce((sum, p) => {
+    const stock = Math.max(Number(p.stock) || 0, 0);
+    const purchaseCost = Math.max(Number(p.purchasePrice) || 0, 0);
+    return sum + (stock * purchaseCost);
+  }, 0);
   const categories = [...new Set(products.map(p => p.category))];
 
   if (loading) return <div className="loading"><div className="spinner"></div></div>;

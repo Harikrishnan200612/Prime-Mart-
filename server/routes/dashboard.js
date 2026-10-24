@@ -230,7 +230,39 @@ router.get('/', auth, async (req, res) => {
     const productLinesSold = itemStats[0]?.productLinesSold || 0;
 
     // ==========================================
-    // 7. LOW STOCK & INCOMPLETE COST CHECKS
+    // 7. INVENTORY VALUATION & STOCK STATS
+    // Total Inventory Value = Sum of (Available Stock Quantity × Unit Purchase Cost)
+    // ==========================================
+    const inventoryValAgg = await Product.aggregate([
+      { $match: { userId: userObjectId, isDeleted: { $ne: true } } },
+      {
+        $project: {
+          stock: { $ifNull: ['$stock', 0] },
+          purchasePrice: { $ifNull: ['$purchasePrice', 0] },
+          itemValue: {
+            $multiply: [
+              { $max: [{ $ifNull: ['$stock', 0] }, 0] },
+              { $max: [{ $ifNull: ['$purchasePrice', 0] }, 0] }
+            ]
+          }
+        }
+      },
+      {
+        $group: {
+          _id: null,
+          totalInventoryValue: { $sum: '$itemValue' },
+          totalStockUnits: { $sum: '$stock' },
+          productCount: { $sum: 1 }
+        }
+      }
+    ]);
+
+    const totalInventoryValue = round2(inventoryValAgg[0]?.totalInventoryValue || 0);
+    const totalStockUnits = inventoryValAgg[0]?.totalStockUnits || 0;
+    const totalProductsCount = inventoryValAgg[0]?.productCount || 0;
+
+    // ==========================================
+    // 8. LOW STOCK & INCOMPLETE COST CHECKS
     // ==========================================
     const lowStockProducts = await Product.countDocuments({
       userId: userObjectId,
@@ -242,11 +274,14 @@ router.get('/', auth, async (req, res) => {
     );
 
     // ==========================================
-    // 8. FINAL DASHBOARD RESPONSE
+    // 9. FINAL DASHBOARD RESPONSE
     // ==========================================
     res.json({
       // Overall Business Summary (Section A: 6 Cards)
       totalSales,
+      totalInventoryValue,
+      totalStockUnits,
+      productCount: totalProductsCount,
       inventoryExpenses,
       operatingExpenses,
       cogs,

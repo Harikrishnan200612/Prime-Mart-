@@ -108,4 +108,63 @@ router.get('/me', auth, async (req, res) => {
   }
 });
 
+// Update current user profile / credentials
+router.put('/profile', auth, async (req, res) => {
+  try {
+    const { email, password, confirmPassword, businessName, ownerName, phone } = req.body;
+    const user = await User.findById(req.userId);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    if (email && email.trim().toLowerCase() !== user.email) {
+      const cleanEmail = email.trim().toLowerCase();
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(cleanEmail)) {
+        return res.status(400).json({ message: 'Invalid email address format' });
+      }
+      const existing = await User.findOne({ email: cleanEmail });
+      if (existing && existing._id.toString() !== user._id.toString()) {
+        return res.status(400).json({ message: 'Email address already in use by another account' });
+      }
+      user.email = cleanEmail;
+    }
+
+    if (password) {
+      if (password.length < 6) {
+        return res.status(400).json({ message: 'Password must be at least 6 characters' });
+      }
+      if (confirmPassword && password !== confirmPassword) {
+        return res.status(400).json({ message: 'Passwords do not match' });
+      }
+      user.password = password; // pre('save') hook will automatically hash with bcrypt
+    }
+
+    if (businessName && businessName.trim()) user.businessName = businessName.trim();
+    if (ownerName && ownerName.trim()) user.ownerName = ownerName.trim();
+    if (phone && phone.trim()) user.phone = phone.trim();
+
+    await user.save();
+
+    // Reissue JWT token with updated email
+    const secret = process.env.JWT_SECRET || 'your_jwt_secret';
+    const token = jwt.encode({ userId: user._id, email: user.email }, secret);
+
+    res.json({
+      message: 'Account credentials updated successfully',
+      token,
+      user: {
+        _id: user._id,
+        businessName: user.businessName,
+        ownerName: user.ownerName,
+        email: user.email,
+        phone: user.phone
+      }
+    });
+  } catch (err) {
+    console.error('Profile update error:', err);
+    res.status(500).json({ message: 'Failed to update credentials', error: err.message });
+  }
+});
+
 module.exports = router;
