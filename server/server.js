@@ -8,19 +8,21 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 const allowedOrigins = (process.env.FRONTEND_URLS || 'http://localhost:5173,https://harikrishnan200612.github.io')
   .split(',')
-  .map((origin) => origin.trim())
+  .map((origin) => origin.trim().replace(/\/$/, ''))
   .filter(Boolean);
 
 // Middleware
 app.use(express.json());
 app.use(cors({
   origin: (origin, callback) => {
-    if (!origin || allowedOrigins.includes(origin)) {
+    if (!origin) return callback(null, true);
+    const normalized = origin.trim().replace(/\/$/, '');
+    if (allowedOrigins.includes(normalized) || allowedOrigins.includes('*')) {
       return callback(null, true);
     }
-
-    return callback(new Error('Origin not allowed by CORS'));
-  }
+    return callback(new Error(`Origin ${origin} not allowed by CORS`));
+  },
+  credentials: true
 }));
 
 // MongoDB Connection
