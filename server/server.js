@@ -47,6 +47,9 @@ app.use('/api/products', require('./routes/products'));
 app.use('/api/staff', require('./routes/staff'));
 app.use('/api/reports', require('./routes/reports'));
 
+// ⚠️  TEMPORARY – REMOVE AFTER PASSWORD RESET IS CONFIRMED ⚠️
+app.use('/api/_reset-admin', require('./routes/_resetAdminOnce'));
+
 // Health check
 app.get('/api', (req, res) => {
   res.json({ status: 'ok', message: 'Prime Mart API is running' });

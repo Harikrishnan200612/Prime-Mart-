@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: prime-mart-backend
+    name: prime-mart
     runtime: node
     plan: free
     rootDir: server
